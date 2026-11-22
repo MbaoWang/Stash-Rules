@@ -26,6 +26,18 @@ function get(url) {
   });
 }
 const json = (r) => { try { return JSON.parse(r.data); } catch (_) { return null; } };
+// 把失敗原因轉成看得懂的文字
+function reason(r) {
+  if (r.err) {
+    const e = r.err.toLowerCase();
+    if (e.includes('timeout') || e.includes('timed out')) return '逾時';
+    if (e.includes('closed') || e.includes('reset') || e.includes('reject')) return '連線被關閉（可能命中 REJECT）';
+    return r.err;
+  }
+  if (r.status === 429) return 'HTTP 429 限流';
+  if (r.status && r.status !== 200) return `HTTP ${r.status}`;
+  return '回應不是 JSON';
+}
 const isV6 = (ip) => typeof ip === 'string' && ip.includes(':');
 const rand = () => Array.from({ length: 24 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
 
@@ -42,8 +54,11 @@ function tzOffset(tz) {
     get('https://ipinfo.io/json'),
     get('https://api.ip.sb/geoip'),
     get('https://1.1.1.1/cdn-cgi/trace'), // IP 直連目標，可測 IP 類規則的走向
-    get(`http://${rand()}.edns.ip-api.com/json`), // 隨機子網域，未被覆寫強制分流 → 測真實 DNS 行為
+    get(`http://${rand()}.edns.ip-api.com/json`), // 隨機子網域 → 不吃快取，測實際使用的 DNS
   ]);
+  // DNS 檢測失敗時換一個子網域重試一次
+  let ednsRes = ednsR;
+  if (!json(ednsRes) || !json(ednsRes).dns) ednsRes = await get(`http://${rand()}.edns.ip-api.com/json`);
 
   const lines = [];
   let bad = 0, warn = 0;
@@ -95,7 +110,7 @@ function tzOffset(tz) {
   }
 
   // ── DNS / ECS
-  const edns = json(ednsR);
+  const edns = json(ednsRes);
   const exitCountry = ipapi && ipapi.country;
   const geoCountry = (g) => (g || '').split(' - ')[0].trim();
   if (edns && edns.dns) {
@@ -112,7 +127,7 @@ function tzOffset(tz) {
       else lines.push(`ℹ️ ECS：${edns.edns.ip}（${ec || '?'}）`);
     }
   } else {
-    lines.push('⚠️ DNS 檢測失敗');
+    lines.push(`⚠️ DNS 檢測失敗：${reason(ednsRes)}`);
   }
 
   // ── 時區

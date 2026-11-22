@@ -13,9 +13,11 @@ rules:
   - DOMAIN-SUFFIX,pixelscan.net,PROXY
 
   # ── 2. 偵測站常呼叫的 IP 資料庫 API：統一出口，避免「多個來源看到不同 IP」
-  #    （ip-api 用 DOMAIN 而非 SUFFIX，保留 edns.ip-api.com 給面板做真實 DNS 測試）
+  #    edns.ip-api.com 是面板的 DNS 檢測用網域（隨機子網域），也強制走代理，
+  #    避免被原配置的去廣告 / REJECT 規則擋掉（會出現 ERR_CONNECTION_CLOSED）
   - DOMAIN,ip-api.com,PROXY
   - DOMAIN,pro.ip-api.com,PROXY
+  - DOMAIN-SUFFIX,edns.ip-api.com,PROXY
   - DOMAIN-SUFFIX,ipinfo.io,PROXY
   - DOMAIN-SUFFIX,ip.sb,PROXY
   - DOMAIN-SUFFIX,ipapi.co,PROXY
