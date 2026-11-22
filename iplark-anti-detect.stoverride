@@ -1,40 +1,39 @@
 name: IPLark 防代理偵測
 desc: 偵測站與 IP 查詢 API 統一走同一出口、DNS 走遠端解析、WebRTC/STUN 走代理，並加入「代理洩露檢測」面板
-# ⚠️ 使用前：把下方所有 PROXY 換成你配置裡實際的策略組名稱（例如「🚀 節點選擇」），
-#    名稱不存在時 Stash 會載入失敗。
+# 策略組：🚀 節點選擇（若你的配置名稱不同，請一併修改，名稱不存在時 Stash 會載入失敗）
 
 rules:
   # ── 1. 偵測站本身：網域規則命中 → Stash 不在本地解析，交給節點遠端解析（防 DNS 洩露）
-  - DOMAIN-SUFFIX,iplark.com,PROXY
-  - DOMAIN-SUFFIX,browserleaks.com,PROXY
-  - DOMAIN-SUFFIX,browserleaks.net,PROXY
-  - DOMAIN-SUFFIX,ipleak.net,PROXY
-  - DOMAIN-SUFFIX,dnsleaktest.com,PROXY
-  - DOMAIN-SUFFIX,whoer.net,PROXY
-  - DOMAIN-SUFFIX,pixelscan.net,PROXY
+  - DOMAIN-SUFFIX,iplark.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,browserleaks.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,browserleaks.net,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipleak.net,🚀 節點選擇
+  - DOMAIN-SUFFIX,dnsleaktest.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,whoer.net,🚀 節點選擇
+  - DOMAIN-SUFFIX,pixelscan.net,🚀 節點選擇
 
   # ── 2. 偵測站常呼叫的 IP 資料庫 API：統一出口，避免「多個來源看到不同 IP」
   #    （ip-api 用 DOMAIN 而非 SUFFIX，保留 edns.ip-api.com 給面板做真實 DNS 測試）
-  - DOMAIN,ip-api.com,PROXY
-  - DOMAIN,pro.ip-api.com,PROXY
-  - DOMAIN-SUFFIX,ipinfo.io,PROXY
-  - DOMAIN-SUFFIX,ip.sb,PROXY
-  - DOMAIN-SUFFIX,ipapi.co,PROXY
-  - DOMAIN-SUFFIX,ipapi.is,PROXY
-  - DOMAIN-SUFFIX,ipify.org,PROXY
-  - DOMAIN-SUFFIX,ipdata.co,PROXY
-  - DOMAIN-SUFFIX,ipregistry.co,PROXY
-  - DOMAIN-SUFFIX,ip2location.io,PROXY
-  - DOMAIN-SUFFIX,ipqualityscore.com,PROXY
-  - DOMAIN-SUFFIX,scamalytics.com,PROXY
-  - DOMAIN-SUFFIX,ifconfig.me,PROXY
-  - DOMAIN-SUFFIX,ident.me,PROXY
+  - DOMAIN,ip-api.com,🚀 節點選擇
+  - DOMAIN,pro.ip-api.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipinfo.io,🚀 節點選擇
+  - DOMAIN-SUFFIX,ip.sb,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipapi.co,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipapi.is,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipify.org,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipdata.co,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipregistry.co,🚀 節點選擇
+  - DOMAIN-SUFFIX,ip2location.io,🚀 節點選擇
+  - DOMAIN-SUFFIX,ipqualityscore.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,scamalytics.com,🚀 節點選擇
+  - DOMAIN-SUFFIX,ifconfig.me,🚀 節點選擇
+  - DOMAIN-SUFFIX,ident.me,🚀 節點選擇
 
   # ── 3. WebRTC：STUN 走代理，讓 WebRTC 看到的公網 IP = 節點 IP
   #    （節點需支援 UDP；不支援的話改成 REJECT，但 REJECT 3478 可能影響 FaceTime）
-  - DST-PORT,3478,PROXY
-  - DST-PORT,19302,PROXY
-  - DST-PORT,5349,PROXY
+  - DST-PORT,3478,🚀 節點選擇
+  - DST-PORT,19302,🚀 節點選擇
+  - DST-PORT,5349,🚀 節點選擇
 
 # ── 4.（可選）DNS：若你原配置的 nameserver 是國內/ISP DNS，未命中網域規則的
 #    連線會在本地解析並暴露 DNS 所在地。取消註解改用海外 DoH（國內網站可能變慢）。
