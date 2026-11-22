@@ -61,5 +61,5 @@ script:
 script-providers:
   leak-check:
     # 面板腳本（本 repo 的 leak-check.js）
-    url: https://raw.githubusercontent.com/MbaoWang/Stash-Anti-Detect-Proxy/main/leak-check.js
+    url: https://raw.githubusercontent.com/MbaoWang/Stash-Proxy-override/main/leak-check.js
     interval: 86400
