@@ -1,118 +1,96 @@
-# Stash Proxy Override
+# Stash DNS 防洩漏覆寫
 
-Stash 覆寫：減少 IPLark 等偵測網站能看到的代理洩露資訊，並附一個「代理洩露檢測」面板。
+只處理 DNS 的 Stash 覆寫：換掉原本的 DNS 伺服器、阻擋繞過 Stash 的 DoT，並讓 DNS 洩漏測試網站改由節點解析。
 
-| 檔案 | 說明 |
-|---|---|
-| `iplark-anti-detect.stoverride` | 覆寫檔：分流規則、WebRTC/STUN 處理、面板設定 |
-| `leak-check.js` | 面板（Tile）腳本，由覆寫檔自動載入 |
-| `dns-leak-protection.stoverride` | 純 DNS 防洩漏覆寫，可單獨使用，也可和上面的覆寫一起啟用 |
+## 安裝（透過 Gist）
 
-## 安裝
+本 repo 是私人的，Stash 讀不到這裡的連結，所以要先放到 Gist。
 
-### 前提
+### 1. 建立 Gist
 
-你的 Stash 配置裡必須有一個叫 **`PROXY`** 的策略組。覆寫裡的規則都指向它，名稱不存在時 Stash 會載入失敗。
-策略組名稱不同的話，請 fork 本 repo，把 `iplark-anti-detect.stoverride` 裡的 `PROXY` 全部換成你的名稱，再用你自己的 raw 連結安裝。
+1. 打開 <https://gist.github.com/>
+2. 檔名填 `dns-leak-protection.stoverride`
+3. 把下方「覆寫內容」整段複製貼上
+4. 點 **Create secret gist**。Secret gist 不會出現在搜尋結果，但有連結就能讀取，Stash 可以直接安裝。
 
-### 方法一：一鍵安裝
+### 2. 取得安裝連結
 
-在 iPhone / iPad 上用 Safari 打開：
+建立後點檔案右上角的 **Raw**，網址會長這樣：
 
 ```
-stash://install-override?url=https%3A%2F%2Fraw.githubusercontent.com%2FMbaoWang%2FStash-Proxy-override%2Fmain%2Fiplark-anti-detect.stoverride
+https://gist.githubusercontent.com/<帳號>/<Gist ID>/raw/<一串版本號>/dns-leak-protection.stoverride
 ```
 
-### 方法二：手動新增
-
-1. 打開 Stash → 首頁 →「覆寫」→ 右上角「＋」→「從 URL 安裝」
-2. 貼上：
-   ```
-   https://raw.githubusercontent.com/MbaoWang/Stash-Proxy-override/main/iplark-anti-detect.stoverride
-   ```
-3. 啟用這個覆寫，回到首頁就能看到「代理洩露檢測」面板
-
-### 更新
-
-在覆寫列表中下拉或點擊覆寫重新整理即可。面板腳本每 24 小時自動更新一次。
-
-## 覆寫做了什麼
-
-1. **偵測網站走代理**：iplark、browserleaks、ipleak、dnsleaktest、whoer、pixelscan 一律走 `PROXY`。
-   因為命中的是網域規則，Stash 不會在本地解析這些網域，而是交給節點遠端解析，避免 DNS 洩露。
-2. **IP 查詢 API 統一出口**：ip-api、ipinfo、ip.sb、ipapi、ipify、ipdata、ipregistry、ip2location、ipqualityscore、scamalytics 等走同一個出口，避免出現「多個來源看到不同 IP」。
-3. **WebRTC**：STUN 埠（3478、19302、5349）走代理，讓 WebRTC 看到的公網 IP 等於節點 IP。
-   節點不支援 UDP 時可改成 `REJECT`，但封鎖 3478 可能影響 FaceTime。
-4. **（可選）DNS**：覆寫檔中有一段註解掉的 `dns:` 設定，原配置使用國內或 ISP DNS 時可以啟用，改用海外 DoH。
-
-## 代理洩露檢測面板
-
-點擊面板即可重新檢測，預設每 10 分鐘自動刷新。
-
-| 項目 | 說明 |
-|---|---|
-| 出口一致性 | 比對 ip-api、ipinfo、ip.sb、Cloudflare 看到的 IP；不一致時判定為「多出口」❌ |
-| DNS | 用隨機子網域查詢 `edns.ip-api.com`，看實際使用的 DNS 所在國；與出口國不同時 ⚠️ |
-| ECS | DNS 查詢帶出的客戶端網段（EDNS Client Subnet）所在國與出口不同時 ❌，代表真實網段外洩 |
-| IP 類型 | 機房 IP 或被標記代理/VPN 時 ⚠️ |
-| 時區 | 裝置時區與 IP 所在時區不符時 ⚠️ |
-| IPv6 | 出現 IPv6 出口時 ⚠️，代表 v4 和 v6 可能走不同出口 |
-
-面板顏色：紅色表示有 ❌ 項目，橘色表示只有 ⚠️，綠色表示全部通過。
-
-DNS 檢測用的 `edns.ip-api.com` 也在覆寫規則內（走 `PROXY`），測出來的是經由節點遠端解析時，網站看到的 DNS 與 ECS，也就是 iplark 這類偵測站實際看到的結果。
-
-### 面板顯示「DNS 檢測失敗」
-
-失敗原因會顯示在冒號後面：
-
-| 原因 | 處理方式 |
-|---|---|
-| 連線被關閉（可能命中 REJECT） | 確認覆寫已更新到最新版；到 Stash「請求」紀錄查 `edns.ip-api.com` 命中哪條規則 |
-| HTTP 429 限流 | 共用節點的出口 IP 被太多人使用，過幾分鐘再試或換節點 |
-| 逾時 | 節點較慢，換節點或稍後再試 |
-
-## 純 DNS 防洩漏（`dns-leak-protection.stoverride`）
-
-只處理 DNS，不加面板、不動其他分流：
-
-1. **整個取代原本的 DNS**：用 `#!replace` 把 `default-nameserver` 和 `nameserver` 換成 Cloudflare 的 DoH（直接寫 IP）。
-   Stash 會同時查詢所有 DNS 伺服器，如果只是追加，原本的 ISP 或系統 DNS 仍會收到查詢，所以必須整個取代。
-2. **不送 ECS**：Cloudflare 不會把你的網段帶給權威 DNS。
-3. **阻擋 DoT（853 埠）**：避免 App 自己繞過 Stash 直連 DNS 伺服器。
-4. **洩漏測試網站走遠端解析**：iplark、browserleaks、ipleak、dnsleaktest、whoer 由節點解析。
-
-安裝連結：
+把中間的 `<一串版本號>/` 刪掉，變成：
 
 ```
-https://raw.githubusercontent.com/MbaoWang/Stash-Proxy-override/main/dns-leak-protection.stoverride
+https://gist.githubusercontent.com/<帳號>/<Gist ID>/raw/dns-leak-protection.stoverride
 ```
 
-這個覆寫處理不到的地方：
+不含版本號的連結永遠指向最新版，之後修改 Gist 時，Stash 更新覆寫就會抓到新內容。
 
-- **規則觸發本地解析**：原配置裡沒加 `no-resolve` 的 `GEOIP`、`IP-CIDR` 規則，會讓 Stash 在本地先解析網域。
-  這時 DoH 伺服器看到的是你的真實 IP。覆寫沒辦法修改原有規則，請自己在這些規則後面加上 `,no-resolve`。
-- **IPv6 繞過 Tunnel**：Stash 預設只接管 IPv4。網路有 IPv6 時，請開啟「網路設定 → 啟用 Tunnel IPv6 路由」。
+### 3. 安裝到 Stash
 
-## 其他網站也適用嗎？
+- **手動**：Stash → 首頁 →「覆寫」→ 右上角「＋」→「從 URL 安裝」→ 貼上第 2 步的連結
+- **一鍵**：在 iPhone 的 Safari 打開 `stash://install-override?url=` 加上 URL 編碼後的連結。
+  編碼方式是把 `:` 換成 `%3A`、`/` 換成 `%2F`。
 
-要分成兩部分看：
+### 覆寫內容
 
-- **對所有網站都有效**：WebRTC/STUN 走代理，以及啟用可選 DNS 設定後的 DNS 改善。這兩項是全域規則，不限網站。
-- **只對列出的網站有效**：網域分流規則只涵蓋上面列出的偵測站與 IP API。
-  其他網站如果有自己的偵測網域，就會照你原本的配置分流。
-  需要時，可以自己在覆寫裡加上 `DOMAIN-SUFFIX,網域,PROXY`。
+使用前先確認你的配置裡有叫 `PROXY` 的策略組；名稱不同的話，把內容裡的 `PROXY` 全部換掉。
 
-以下項目是覆寫**無法處理**的，任何網站都一樣：
+```yaml
+name: DNS 防洩漏
+desc: 只處理 DNS：取代原本的 DNS 伺服器、阻擋繞過 Stash 的 DoT、偵測站走遠端解析
+# 策略組：PROXY（若你的配置名稱不同，請一併修改，名稱不存在時 Stash 會載入失敗）
 
-- **IP 本身的信譽**：機房 IP、被資料庫標記為代理或 VPN 的 IP 只能換節點解決，例如換成住宅 IP。
-  串流平台、AI 服務、銀行等網站主要看的就是這一項。
-- **TCP/IP 指紋與延遲**：伺服器看到的 TCP 指紋來自節點系統（通常是 Linux），與 iOS 的 UA 不符；連線延遲也可能露出破綻。這些用戶端改不了。
-- **時區與語言**：瀏覽器回報的是裝置設定，請手動把裝置時區改成節點所在地。
+dns:
+  # ── 1. 用 #!replace 整個取代原配置的 DNS。
+  #    Stash 會「同時」查詢所有 nameserver，若只是追加，原本的 ISP / 系統 DNS 仍會收到查詢。
+  #    default-nameserver 只用來解析 DoH 的網域；下面的 DoH 都直接寫 IP，不經任何明文 DNS。
+  #    不放 system，避免 ISP DNS 收到查詢。
+  default-nameserver: #!replace
+    - 1.1.1.1
+    - 1.0.0.1
+  # ── 2. 加密 DNS（DoH），Cloudflare 不送 ECS，不會把你的真實網段帶給權威 DNS
+  nameserver: #!replace
+    - https://1.1.1.1/dns-query
+    - https://1.0.0.1/dns-query
+  # ── 3.（可選）原配置若有 nameserver-policy 把部分網域交給 ISP/國內 DNS，
+  #    取消下面兩行的註解即可清空（代價：那些網域改用上面的 DoH 解析）
+  # nameserver-policy: #!replace
+  #   {}
 
-本覆寫刻意**不使用 MITM**。MITM 之後，網站看到的 TLS 指紋會變成 Stash 的，而不是 Safari 的，反而更容易被判定為代理。
+rules:
+  # ── 4. 阻擋 App 自己用 DoT（853 埠）直連 DNS 伺服器，迫使它改走 Stash 的 DNS
+  - DST-PORT,853,REJECT
 
-## 注意事項
+  # ── 5. DNS 洩漏測試網站：命中網域規則 → Stash 不在本地解析，交給節點遠端解析
+  - DOMAIN-SUFFIX,iplark.com,PROXY
+  - DOMAIN-SUFFIX,browserleaks.com,PROXY
+  - DOMAIN-SUFFIX,browserleaks.net,PROXY
+  - DOMAIN-SUFFIX,browserleaks.org,PROXY
+  - DOMAIN-SUFFIX,ipleak.net,PROXY
+  - DOMAIN-SUFFIX,dnsleaktest.com,PROXY
+  - DOMAIN-SUFFIX,whoer.net,PROXY
+  - DOMAIN-SUFFIX,edns.ip-api.com,PROXY
+```
 
-- ip-api 免費版只支援 http，限制每分鐘 45 次請求，面板的刷新頻率不會超過限制。
-- 如果遠端解析使用 Google 或 Cloudflare 的 anycast DNS，DNS 所在國有時會被判成美國，跟節點不同國，這種 ⚠️ 可能是誤報。
+## 這個覆寫做了什麼
+
+1. **整個換掉原本的 DNS**：用 `#!replace` 把 `default-nameserver` 和 `nameserver` 換成 Cloudflare 的 DoH，位址直接寫成 IP。
+   Stash 會同時查詢所有 DNS 伺服器，如果只是追加，原本的 ISP 或系統 DNS 照樣會收到查詢，所以必須整個換掉。
+2. **不送 ECS**：Cloudflare 不會把你的網段帶給網站的 DNS 伺服器。
+3. **阻擋 DoT（853 埠）**：避免 App 自己繞過 Stash 去連 DNS 伺服器。
+4. **洩漏測試網站改由節點解析**：iplark、browserleaks、ipleak、dnsleaktest、whoer、edns.ip-api.com 的網域查詢交給節點去做，本地不解析。
+5. **（可選）清空 `nameserver-policy`**：原配置如果把部分網域交給 ISP DNS，可以拿掉註解清空。代價是那些網域會改用 Cloudflare 解析。
+
+## 覆寫處理不到、要自己改的地方
+
+- **原配置的 `GEOIP`、`IP-CIDR` 規則要加 `,no-resolve`**：沒加的話，Stash 會先在本地解析網域，DoH 伺服器就會看到你的真實 IP。
+  覆寫沒辦法修改原有規則，只能自己在原配置裡改。
+- **開啟「網路設定 → 啟用 Tunnel IPv6 路由」**：Stash 預設只接管 IPv4。網路有 IPv6 時不開的話，IPv6 流量（例如 WebRTC）會繞過 Stash。
+
+## 驗證
+
+裝好後用 Safari 打開 `browserleaks.com/dns` 或 `ipleak.net`。列出的 DNS 伺服器應該只有 Cloudflare，或是節點所在地的 DNS，不應該出現你的 ISP。
