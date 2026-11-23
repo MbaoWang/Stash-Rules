@@ -6,6 +6,7 @@ Stash 覆寫：減少 IPLark 等偵測網站能看到的代理洩露資訊，並
 |---|---|
 | `iplark-anti-detect.stoverride` | 覆寫檔：分流規則、WebRTC/STUN 處理、面板設定 |
 | `leak-check.js` | 面板（Tile）腳本，由覆寫檔自動載入 |
+| `dns-leak-protection.stoverride` | 純 DNS 防洩漏覆寫，可單獨使用，也可和上面的覆寫一起啟用 |
 
 ## 安裝
 
@@ -70,6 +71,28 @@ DNS 檢測用的 `edns.ip-api.com` 也在覆寫規則內（走 `PROXY`），測�
 | 連線被關閉（可能命中 REJECT） | 確認覆寫已更新到最新版；到 Stash「請求」紀錄查 `edns.ip-api.com` 命中哪條規則 |
 | HTTP 429 限流 | 共用節點的出口 IP 被太多人使用，過幾分鐘再試或換節點 |
 | 逾時 | 節點較慢，換節點或稍後再試 |
+
+## 純 DNS 防洩漏（`dns-leak-protection.stoverride`）
+
+只處理 DNS，不加面板、不動其他分流：
+
+1. **整個取代原本的 DNS**：用 `#!replace` 把 `default-nameserver` 和 `nameserver` 換成 Cloudflare 的 DoH（直接寫 IP）。
+   Stash 會同時查詢所有 DNS 伺服器，如果只是追加，原本的 ISP 或系統 DNS 仍會收到查詢，所以必須整個取代。
+2. **不送 ECS**：Cloudflare 不會把你的網段帶給權威 DNS。
+3. **阻擋 DoT（853 埠）**：避免 App 自己繞過 Stash 直連 DNS 伺服器。
+4. **洩漏測試網站走遠端解析**：iplark、browserleaks、ipleak、dnsleaktest、whoer 由節點解析。
+
+安裝連結：
+
+```
+https://raw.githubusercontent.com/MbaoWang/Stash-Proxy-override/main/dns-leak-protection.stoverride
+```
+
+這個覆寫處理不到的地方：
+
+- **規則觸發本地解析**：原配置裡沒加 `no-resolve` 的 `GEOIP`、`IP-CIDR` 規則，會讓 Stash 在本地先解析網域。
+  這時 DoH 伺服器看到的是你的真實 IP。覆寫沒辦法修改原有規則，請自己在這些規則後面加上 `,no-resolve`。
+- **IPv6 繞過 Tunnel**：Stash 預設只接管 IPv4。網路有 IPv6 時，請開啟「網路設定 → 啟用 Tunnel IPv6 路由」。
 
 ## 其他網站也適用嗎？
 
