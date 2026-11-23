@@ -1,8 +1,11 @@
 # Stash DNS 防洩漏覆寫
 
-只處理 DNS 的 Stash 覆寫：中國網域用阿里 DNS，其餘用 Cloudflare / Google，並阻擋繞過 Stash 的 DoT。
+只處理 DNS 的 Stash 覆寫：中國網域用阿里 DNS 直連；其餘用 Cloudflare / Google，並經 `PROXY` 送出，所以 DNS 會跟著節點所在地。另外會擋掉繞過 Stash 的明文 DNS 與 DoT。
 
 ## 安裝
+
+使用前先確認你的配置裡有叫 `PROXY` 的策略組，覆寫裡的規則都指向它。
+名稱不同的話，請 fork 本 repo，把 `PROXY` 全部換成你的名稱，再用自己的連結安裝。
 
 ### 一鍵安裝
 
@@ -26,28 +29,33 @@ https://raw.githubusercontent.com/MbaoWang/Stash-Rules/main/dns-leak-protection.
 
 ## 這個覆寫做了什麼
 
-| 網域 | DNS 伺服器 |
-|---|---|
-| 中國網域（`geosite:cn`） | 阿里 DoH：`dns.alidns.com`、`223.5.5.5` |
-| 其他網域 | Cloudflare DoH `1.1.1.1`、Google DoH `dns.google` |
-| 解析 DoH 伺服器本身的網域 | 阿里 `223.5.5.5`、`223.6.6.6` |
+| 用途 | DNS 伺服器 | 出口 |
+|---|---|---|
+| 中國網域（`geosite:cn`） | 阿里 DoH `223.5.5.5` | 直連 |
+| 其他網域 | Cloudflare DoH `1.1.1.1`、Google DoH `8.8.8.8` | `PROXY` |
+| 解析節點網域（引導） | 阿里 DoH `223.6.6.6` | 直連 |
 
-1. **全部用 DoH 加密**：ISP 看不到你查了哪些網域，也無法竄改結果。
-2. **整個取代原本的 DNS**：`default-nameserver`、`nameserver`、`nameserver-policy` 都加了 `#!replace`。
-   Stash 會同時查詢所有 DNS 伺服器，如果只是追加，原本的 ISP 或系統 DNS 照樣會收到查詢。
-   原配置裡的 `nameserver-policy` 也會被取代。
-3. **國內網域用國內 DNS**：阿里 DNS 會回傳國內最近的 CDN 節點，國內網站速度不受影響；國外 DNS 也不會收到你的國內查詢紀錄。
-4. **阻擋 DoT（853 埠）**：避免 App 自己繞過 Stash 去連 DNS 伺服器。
+1. **`follow-rule: true`**：Stash 自己發出的 DNS 查詢也會比對規則。
+   國外 DoH 經 `PROXY` 送出，DNS 伺服器看到的是節點 IP，回應的也是節點所在地的 DNS 節點。
+   所以就算有規則觸發本地解析，檢測結果也會顯示節點所在地，例如節點在日本就顯示日本。
+2. **同時查詢、用最快的**：同一組有多台 DNS 伺服器時，Stash 會同時查詢，用最先回來的結果。
+3. **整個取代原本的 DNS**：`default-nameserver`、`proxy-server-nameserver`、`nameserver`、`fallback`、`nameserver-policy` 都加了 `#!replace`。
+   原本的 ISP 或系統 DNS 不會再收到查詢，原配置的這幾項設定也會被取代。
+4. **引導 DNS 與阿里查詢分開**：解析節點網域用的 `223.6.6.6` 一定直連。
+   如果它也走 `PROXY`，就會變成「要連節點得先解析節點」的迴圈。
+5. **阻擋明文 DNS（53）與 DoT（853）**：擋掉 App 自己寫死的 DNS 伺服器（例如直連 `8.8.8.8:53`），迫使它改走 Stash 的 DNS。
+   系統一般的 DNS 查詢由 Stash 直接處理，不會進規則，不受影響。
 
-## 覆寫處理不到、要自己改的地方
+## 注意事項
 
-- **在本地解析的查詢，DNS 伺服器看得到你的真實 IP**：DoH 是從你的網路直接連出去的。走代理、而且命中網域規則的連線，由節點遠端解析，不受影響。
-- **原配置的 `GEOIP`、`IP-CIDR` 規則要加 `,no-resolve`**：沒加的話，Stash 會先在本地解析網域，DoH 伺服器就會看到你的真實 IP。
-  覆寫沒辦法修改原有規則，只能自己在原配置裡改。
-- **開啟「網路設定 → 啟用 Tunnel IPv6 路由」**：Stash 預設只接管 IPv4。網路有 IPv6 時不開的話，IPv6 流量（例如 WebRTC）會繞過 Stash。
+- **中國網域的查詢**：由阿里直接看到你的真實 IP。這是為了拿到國內最近的 CDN 節點，屬於預期行為。
+- **其他覆寫的 IP 規則**：最好也加上 `no-resolve`。有了 `follow-rule`，本地解析不會再顯示台灣，但每個網站都會多一次經過節點的 DNS 查詢，速度會變慢。
+  - 去廣告規則集請用 `*_No_Resolve.yaml` 版本。
+- **IPv6**：Stash 預設只接管 IPv4。網路有 IPv6 時，請開啟「網路設定 → 啟用 Tunnel IPv6 路由」。
+- **不要和其他會改 DNS 的覆寫同時開**（例如 DNSLeakGuard），兩邊的 `#!replace` 會互相覆蓋。
 
 ## 驗證
 
-裝好後用 Safari 打開 `browserleaks.com/dns` 或 `ipleak.net`。列出的 DNS 伺服器應該是 Cloudflare 或 Google；如果測試網站命中了你原配置裡走代理的網域規則，則會顯示節點所在地的 DNS。
+裝好後用 Safari 打開 `browserleaks.com/dns` 或 `ipleak.net`。
 
-只要沒出現你的 ISP，就是正常的。測試網站不是中國網域，所以不會顯示阿里 DNS。
+列出的 DNS 伺服器應該是 Cloudflare、Google 或你 VPS 使用的 DNS，所在地和節點相同。測試網站不是中國網域，所以不會顯示阿里。
