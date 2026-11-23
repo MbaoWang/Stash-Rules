@@ -41,13 +41,14 @@ https://raw.githubusercontent.com/MbaoWang/Stash-Rules/main/dns-leak-protection.
 | 用途 | DNS 伺服器 | 出口 |
 |---|---|---|
 | 中國網域（`geosite:cn`） | 阿里 DoH `223.5.5.5` | 直連 |
-| 其他網域 | Cloudflare DoH `1.1.1.1`、Google DoH `8.8.8.8` | `PROXY` |
+| 其他網域 | Cloudflare DoH `1.1.1.1`、`2606:4700:4700::1111`<br>Google DoH `8.8.8.8`、`2001:4860:4860::8888` | `PROXY` |
 | 解析節點網域（引導） | 阿里 DoH `223.6.6.6` | 直連 |
 
 1. **`follow-rule: true`**：Stash 自己發出的 DNS 查詢也會比對規則。
    國外 DoH 經 `PROXY` 送出，DNS 伺服器看到的是節點 IP，回應的也是節點所在地的 DNS 節點。
    所以就算有規則觸發本地解析，檢測結果也會顯示節點所在地，例如節點在日本就顯示日本。
 2. **同時查詢、用最快的**：同一組有多台 DNS 伺服器時，Stash 會同時查詢，用最先回來的結果。
+   國外 DNS 同時有 IPv4 和 IPv6 位址。IPv6 需要節點支援，節點不支援時那兩個會失敗，但 IPv4 仍會正常回應，不影響使用。
 3. **整個取代原本的 DNS**：`default-nameserver`、`proxy-server-nameserver`、`nameserver`、`fallback`、`nameserver-policy` 都加了 `#!replace`。
    原本的 ISP 或系統 DNS 不會再收到查詢，原配置的這幾項設定也會被取代。
 4. **引導 DNS 與阿里查詢分開**：解析節點網域用的 `223.6.6.6` 一定直連。
