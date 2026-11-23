@@ -1,34 +1,26 @@
 name: DNS 防洩漏
-desc: 只處理 DNS：取代原本的 DNS 伺服器、阻擋繞過 Stash 的 DoT、偵測站走遠端解析
-# 策略組：PROXY（若你的配置名稱不同，請一併修改，名稱不存在時 Stash 會載入失敗）
+desc: DNS 分流：中國網域用阿里 DoH，其餘用 Cloudflare / Google DoH，並阻擋繞過 Stash 的 DoT
 
 dns:
-  # ── 1. 用 #!replace 整個取代原配置的 DNS。
-  #    Stash 會「同時」查詢所有 nameserver，若只是追加，原本的 ISP / 系統 DNS 仍會收到查詢。
-  #    default-nameserver 只用來解析 DoH 的網域；下面的 DoH 都直接寫 IP，不經任何明文 DNS。
-  #    不放 system，避免 ISP DNS 收到查詢。
+  # ── 1. 引導 DNS：只用來解析下面 DoH 伺服器本身的網域（dns.alidns.com、dns.google）
+  #    用 #!replace 整個取代原配置，不放 system，避免 ISP DNS 收到查詢
   default-nameserver: #!replace
-    - 1.1.1.1
-    - 1.0.0.1
-  # ── 2. 加密 DNS（DoH），Cloudflare 不送 ECS，不會把你的真實網段帶給權威 DNS
+    - 223.5.5.5
+    - 223.6.6.6
+
+  # ── 2. 國外 / 未分類網域：Cloudflare + Google DoH
+  #    Stash 會「同時」查詢所有 nameserver，所以要用 #!replace，否則原本的 ISP DNS 仍會收到查詢
   nameserver: #!replace
     - https://1.1.1.1/dns-query
-    - https://1.0.0.1/dns-query
-  # ── 3.（可選）原配置若有 nameserver-policy 把部分網域交給 ISP/國內 DNS，
-  #    取消下面兩行的註解即可清空（代價：那些網域改用上面的 DoH 解析）
-  # nameserver-policy: #!replace
-  #   {}
+    - https://dns.google/dns-query
+
+  # ── 3. 中國網域：阿里 DoH（解析出國內最近的 CDN 節點）
+  #    #!replace 會取代原配置的 nameserver-policy
+  nameserver-policy: #!replace
+    'geosite:cn':
+      - https://dns.alidns.com/dns-query
+      - https://223.5.5.5/dns-query
 
 rules:
   # ── 4. 阻擋 App 自己用 DoT（853 埠）直連 DNS 伺服器，迫使它改走 Stash 的 DNS
   - DST-PORT,853,REJECT
-
-  # ── 5. DNS 洩漏測試網站：命中網域規則 → Stash 不在本地解析，交給節點遠端解析
-  - DOMAIN-SUFFIX,iplark.com,PROXY
-  - DOMAIN-SUFFIX,browserleaks.com,PROXY
-  - DOMAIN-SUFFIX,browserleaks.net,PROXY
-  - DOMAIN-SUFFIX,browserleaks.org,PROXY
-  - DOMAIN-SUFFIX,ipleak.net,PROXY
-  - DOMAIN-SUFFIX,dnsleaktest.com,PROXY
-  - DOMAIN-SUFFIX,whoer.net,PROXY
-  - DOMAIN-SUFFIX,edns.ip-api.com,PROXY
