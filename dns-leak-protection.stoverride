@@ -27,7 +27,6 @@ arguments:
       - {value: '1.12.12.12', label: 'DNSPod 1.12.12.12 · 中國可用'}
       - {value: '120.53.53.53', label: 'DNSPod 120.53.53.53 · 中國可用'}
       - {value: '1.0.0.1', label: 'Cloudflare 1.0.0.1 · 中國以外'}
-      - {value: '8.8.4.4', label: 'Google 8.8.4.4 · 中國以外'}
       - {value: '185.222.222.222', label: 'DNS.SB 185.222.222.222 · 中國以外'}
 
 dns:
@@ -68,7 +67,7 @@ dns:
 
 rules:
   # ── 6. 引導 DNS 一律直連，放在最前面
-  #    選 Google 8.8.4.4 時，它也是 dns.google 的 IP 之一，必須先命中這條直連，否則會被下面導向代理而形成迴圈
+  #    引導選項的 IP 不能和下方走代理的 DoH 重複（例如 Google 的 8.8.4.4），否則會形成迴圈或讓查詢直連
   - 'AND,((DST-PORT,443),(IP-CIDR,${args.bootstrap}/32,no-resolve)),DIRECT'
 
   # ── 7. 國外 DoH 走「DNS 出口」（網域與它們的 IPv4 / IPv6 都列出，不論 Stash 用哪種方式連都會命中）
