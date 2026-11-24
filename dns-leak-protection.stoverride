@@ -27,6 +27,7 @@ arguments:
       - {value: '1.12.12.12', label: 'DNSPod 1.12.12.12 · 中國可用'}
       - {value: '120.53.53.53', label: 'DNSPod 120.53.53.53 · 中國可用'}
       - {value: '1.0.0.1', label: 'Cloudflare 1.0.0.1 · 中國以外'}
+      - {value: '8.8.4.4', label: 'Google 8.8.4.4 · 中國以外'}
       - {value: '185.222.222.222', label: 'DNS.SB 185.222.222.222 · 中國以外'}
 
 dns:
@@ -66,7 +67,11 @@ dns:
       - 'https://1.12.12.12/dns-query'
 
 rules:
-  # ── 6. 國外 DoH 走「DNS 出口」（網域與它們的 IPv4 / IPv6 都列出，不論 Stash 用哪種方式連都會命中）
+  # ── 6. 引導 DNS 一律直連，放在最前面
+  #    選 Google 8.8.4.4 時，它也是 dns.google 的 IP 之一，必須先命中這條直連，否則會被下面導向代理而形成迴圈
+  - 'AND,((DST-PORT,443),(IP-CIDR,${args.bootstrap}/32,no-resolve)),DIRECT'
+
+  # ── 7. 國外 DoH 走「DNS 出口」（網域與它們的 IPv4 / IPv6 都列出，不論 Stash 用哪種方式連都會命中）
   - 'AND,((DST-PORT,443),(DOMAIN,cloudflare-dns.com)),${args.egress}'
   - 'AND,((DST-PORT,443),(DOMAIN,dns.google)),${args.egress}'
   - 'AND,((DST-PORT,443),(IP-CIDR,1.1.1.1/32,no-resolve)),${args.egress}'
@@ -79,13 +84,12 @@ rules:
   - 'AND,((DST-PORT,443),(IP-CIDR6,2001:4860:4860::8888/128,no-resolve)),${args.egress}'
   - 'AND,((DST-PORT,443),(IP-CIDR6,2001:4860:4860::8844/128,no-resolve)),${args.egress}'
 
-  # ── 7. 直連的 DoH：引導 DNS、中國網域的阿里與 DNSPod
-  - 'AND,((DST-PORT,443),(IP-CIDR,${args.bootstrap}/32,no-resolve)),DIRECT'
+  # ── 8. 直連的 DoH：中國網域的阿里與 DNSPod
   - 'AND,((DST-PORT,443),(IP-CIDR,223.5.5.5/32,no-resolve)),DIRECT'
   - 'AND,((DST-PORT,443),(IP-CIDR,223.6.6.6/32,no-resolve)),DIRECT'
   - 'AND,((DST-PORT,443),(IP-CIDR,1.12.12.12/32,no-resolve)),DIRECT'
 
-  # ── 8. 阻擋 App 自己寫死的明文 DNS（53）和 DoT（853），迫使它改走 Stash 的 DNS
+  # ── 9. 阻擋 App 自己寫死的明文 DNS（53）和 DoT（853），迫使它改走 Stash 的 DNS
   #    系統一般的 DNS 查詢由 Stash DNS 直接處理，不會進規則，不受影響
   - 'DST-PORT,53,REJECT'
   - 'DST-PORT,853,REJECT'
