@@ -9,12 +9,12 @@ dns:
   follow-rule: true
 
   # ── 2. 引導 DNS：只用來解析「節點」的網域（直連）
-  #    用 1.0.0.1，和下面走 PROXY 的 1.1.1.1 分開；
-  #    如果它也走 PROXY，就會變成「要連節點得先解析節點」的迴圈
+  #    用阿里，中國境內也連得到；國外 DNS 在中國常連不通，會導致節點解析失敗、整個 VPN 起不來
+  #    一定要直連：如果它也走 PROXY，就會變成「要連節點得先解析節點」的迴圈
   default-nameserver: #!replace
-    - https://1.0.0.1/dns-query
+    - https://223.6.6.6/dns-query
   proxy-server-nameserver: #!replace
-    - https://1.0.0.1/dns-query
+    - https://223.6.6.6/dns-query
 
   # ── 3. 國外 / 未分類網域：Cloudflare + Google DoH（全部經 PROXY）
   #    Stash 會「同時」查詢所有 nameserver，用最先回來的結果；
@@ -53,8 +53,7 @@ rules:
   - AND,((DST-PORT,443),(IP-CIDR6,2001:4860:4860::8888/128,no-resolve)),PROXY
   - AND,((DST-PORT,443),(IP-CIDR6,2001:4860:4860::8844/128,no-resolve)),PROXY
 
-  # ── 7. 直連的 DoH：引導用的 1.0.0.1、查中國網域的阿里
-  - AND,((DST-PORT,443),(IP-CIDR,1.0.0.1/32,no-resolve)),DIRECT
+  # ── 7. 直連的 DoH：阿里（引導 + 中國網域）
   - AND,((DST-PORT,443),(IP-CIDR,223.5.5.5/32,no-resolve)),DIRECT
   - AND,((DST-PORT,443),(IP-CIDR,223.6.6.6/32,no-resolve)),DIRECT
 
