@@ -1,33 +1,66 @@
 name: "去廣告｜開屏 + App 內廣告"
-desc: "攔截主流廣告 SDK（開屏 / 插頁 / 橫幅 / 激勵影片）與廣告聯盟網域，並掛載社群維護的廣告規則集"
+desc: "攔截主流廣告 SDK（開屏 / 插頁 / 橫幅 / 激勵影片）與廣告聯盟網域，並掛載社群維護的廣告規則集。可設定規則強度與攔截方式，需要 Stash 3.7 以上。"
 category: "AdBlock"
 icon: "https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/Advertising.png"
+homepage: "https://github.com/MbaoWang/Stash-Rules"
+
+# ============================================================
+# 參數：安裝或編輯覆寫時，Stash 會顯示這些選項
+# ============================================================
+arguments-version: 1
+arguments:
+  ad_rules:
+    type: select
+    title: "廣告規則集（blackmatrix7）"
+    description: "精簡版約 3.7 萬條網域，穩定省記憶體；完整版約 29 萬條、7.9 MB，iOS 記憶體吃緊時可能不穩。選「關閉」只保留本地規則與秋風規則。"
+    default: "blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite"
+    options:
+      - {value: "blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite", label: "精簡版（預設）"}
+      - {value: "blackmatrix7/ios_rule_script/master/rule/Clash/Advertising/Advertising", label: "完整版"}
+      - {value: "MbaoWang/Stash-Rules/main/empty/empty", label: "關閉"}
+  awavenue:
+    type: select
+    title: "秋風廣告規則（AWAvenue）"
+    description: "專攻 App 內廣告 SDK。某個 App 打不開或功能異常時，可以先關掉試試。"
+    default: "TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash-Classical.yaml"
+    options:
+      - {value: "TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash-Classical.yaml", label: "開啟（預設）"}
+      - {value: "MbaoWang/Stash-Rules/main/empty/empty_Classical.yaml", label: "關閉"}
+  block_mode:
+    type: select
+    title: "攔截方式"
+    description: "建連後攔截：會留下連線紀錄，方便排查。建連前攔截：最省資源，但看不到紀錄。靜默丟棄：不回應，部分 App 會一直等到逾時。"
+    default: "REJECT"
+    options:
+      - {value: "REJECT", label: "建連後攔截（預設，可看連線紀錄）"}
+      - {value: "REJECT,pre-matching", label: "建連前攔截（最省資源）"}
+      - {value: "REJECT-DROP", label: "靜默丟棄"}
 
 # ============================================================
 # 1. 遠端規則集（社群維護、每日自動更新，涵蓋範圍最廣）
-#    blackmatrix7 AdvertisingLite 分成兩個檔案：
-#      AdvertisingLite_Domain.yaml     → 約 3.7 萬條網域（behavior: domain）
-#      AdvertisingLite_No_Resolve.yaml → 關鍵字 + IP 規則（behavior: classical）
-#    想要更完整可換成 Advertising（約 29 萬條網域、7.9 MB，iOS 記憶體吃緊時可能不穩）
+#    blackmatrix7 每個規則集分成兩個檔案（由「廣告規則集」選項決定用精簡版或完整版）：
+#      *_Domain.yaml     → 網域清單（behavior: domain）
+#      *_No_Resolve.yaml → 關鍵字 + IP 規則（behavior: classical）
+#    選「關閉」時改用本 repo 的空規則集（empty/），只含永遠不會命中的 blocked.invalid
 #    ⚠️ classical 一定要用 *_No_Resolve.yaml：原版的 IP 規則沒有 no-resolve，
 #       這個規則集又排在所有規則最前面，會讓每個網域都先在本地解析，造成 DNS 洩漏
 # ============================================================
 rule-providers:
-  AdBlock-Lite-Domain:
+  AdBlock-Domain:
     behavior: domain
     format: yaml
-    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite_Domain.yaml"
+    url: "https://raw.githubusercontent.com/${args.ad_rules}_Domain.yaml"
     interval: 86400
-  AdBlock-Lite:
+  AdBlock-Classical:
     behavior: classical
     format: yaml
-    url: "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AdvertisingLite/AdvertisingLite_No_Resolve.yaml"
+    url: "https://raw.githubusercontent.com/${args.ad_rules}_No_Resolve.yaml"
     interval: 86400
   # 秋風廣告規則（AWAvenue）：專攻 App 內廣告 SDK，含 IP 規則可擋 HTTPDNS 直連
   AWAvenue-Ads:
     behavior: classical
     format: yaml
-    url: "https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash-Classical.yaml"
+    url: "https://raw.githubusercontent.com/${args.awavenue}"
     interval: 86400
 
 # ============================================================
@@ -36,89 +69,89 @@ rule-providers:
 # ============================================================
 rules:
   # ---------- 穿山甲 Pangle（字節跳動，開屏廣告大宗） ----------
-  - DOMAIN-SUFFIX,pangolin-sdk-toutiao.com,REJECT
-  - DOMAIN-SUFFIX,pangolin-sdk-toutiao-b.com,REJECT
-  - DOMAIN-SUFFIX,pangle.io,REJECT
-  - DOMAIN-SUFFIX,pglstatp-toutiao.com,REJECT
-  - DOMAIN-SUFFIX,ad.oceanengine.com,REJECT
+  - 'DOMAIN-SUFFIX,pangolin-sdk-toutiao.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,pangolin-sdk-toutiao-b.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,pangle.io,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,pglstatp-toutiao.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,ad.oceanengine.com,${args.block_mode}'
 
   # ---------- 騰訊廣點通 GDT / 優量匯 ----------
-  - DOMAIN-SUFFIX,gdt.qq.com,REJECT
-  - DOMAIN-SUFFIX,l.qq.com,REJECT
-  - DOMAIN,mi.gdt.qq.com,REJECT
-  - DOMAIN,pgdt.gtimg.cn,REJECT
-  - DOMAIN,adsmind.gdtimg.com,REJECT
+  - 'DOMAIN-SUFFIX,gdt.qq.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,l.qq.com,${args.block_mode}'
+  - 'DOMAIN,mi.gdt.qq.com,${args.block_mode}'
+  - 'DOMAIN,pgdt.gtimg.cn,${args.block_mode}'
+  - 'DOMAIN,adsmind.gdtimg.com,${args.block_mode}'
 
   # ---------- 快手聯盟 ----------
-  - DOMAIN-SUFFIX,adukwai.com,REJECT
-  - DOMAIN,open.e.kuaishou.com,REJECT
+  - 'DOMAIN-SUFFIX,adukwai.com,${args.block_mode}'
+  - 'DOMAIN,open.e.kuaishou.com,${args.block_mode}'
 
   # ---------- 百度聯盟 ----------
-  - DOMAIN,mobads.baidu.com,REJECT
-  - DOMAIN,mobads-logs.baidu.com,REJECT
-  - DOMAIN,cpro.baidustatic.com,REJECT
+  - 'DOMAIN,mobads.baidu.com,${args.block_mode}'
+  - 'DOMAIN,mobads-logs.baidu.com,${args.block_mode}'
+  - 'DOMAIN,cpro.baidustatic.com,${args.block_mode}'
 
   # ---------- 阿里 / 京東 / 其他中國廣告聯盟 ----------
-  - DOMAIN-SUFFIX,tanx.com,REJECT
-  - DOMAIN-SUFFIX,sigmob.cn,REJECT
-  - DOMAIN-SUFFIX,sigmob.com,REJECT
-  - DOMAIN-SUFFIX,admaster.com.cn,REJECT
-  - DOMAIN-SUFFIX,miaozhen.com,REJECT
-  - DOMAIN-SUFFIX,adx.ads.oppomobile.com,REJECT
-  - DOMAIN-SUFFIX,ad.xiaomi.com,REJECT
-  - DOMAIN-SUFFIX,umeng.co,REJECT
+  - 'DOMAIN-SUFFIX,tanx.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,sigmob.cn,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,sigmob.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,admaster.com.cn,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,miaozhen.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,adx.ads.oppomobile.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,ad.xiaomi.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,umeng.co,${args.block_mode}'
 
   # ---------- 聚合廣告平台（依使用者連線日誌補充） ----------
-  - DOMAIN-SUFFIX,adn-plus.com.cn,REJECT
-  - DOMAIN-SUFFIX,anythinktech.com,REJECT
-  - DOMAIN-SUFFIX,yfanads.com,REJECT
-  - DOMAIN-SUFFIX,beizi.biz,REJECT
-  - DOMAIN-SUFFIX,statisticslinks.com,REJECT
-  - DOMAIN-SUFFIX,bridgeoos.com,REJECT
-  - DOMAIN-SUFFIX,weszxdrf.com,REJECT
-  - DOMAIN-SUFFIX,etoolads.cn,REJECT
-  - DOMAIN,sdktmp.hubcloud.com.cn,REJECT
-  - DOMAIN,huichuan.sm.cn,REJECT
-  - DOMAIN-SUFFIX,e.qq.com,REJECT
+  - 'DOMAIN-SUFFIX,adn-plus.com.cn,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,anythinktech.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,yfanads.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,beizi.biz,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,statisticslinks.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,bridgeoos.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,weszxdrf.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,etoolads.cn,${args.block_mode}'
+  - 'DOMAIN,sdktmp.hubcloud.com.cn,${args.block_mode}'
+  - 'DOMAIN,huichuan.sm.cn,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,e.qq.com,${args.block_mode}'
 
   # ---------- Google 廣告（AdMob / DoubleClick） ----------
-  - DOMAIN,googleads.g.doubleclick.net,REJECT
-  - DOMAIN-SUFFIX,googlesyndication.com,REJECT
-  - DOMAIN-SUFFIX,googleadservices.com,REJECT
-  - DOMAIN,pagead2.googlesyndication.com,REJECT
-  - DOMAIN,ad.doubleclick.net,REJECT
+  - 'DOMAIN,googleads.g.doubleclick.net,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,googlesyndication.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,googleadservices.com,${args.block_mode}'
+  - 'DOMAIN,pagead2.googlesyndication.com,${args.block_mode}'
+  - 'DOMAIN,ad.doubleclick.net,${args.block_mode}'
 
   # ---------- 海外遊戲 / App 常見廣告 SDK ----------
-  - DOMAIN-SUFFIX,applovin.com,REJECT
-  - DOMAIN-SUFFIX,applvn.com,REJECT
-  - DOMAIN-SUFFIX,unityads.unity3d.com,REJECT
-  - DOMAIN-SUFFIX,supersonicads.com,REJECT
-  - DOMAIN-SUFFIX,vungle.com,REJECT
-  - DOMAIN-SUFFIX,mintegral.com,REJECT
-  - DOMAIN-SUFFIX,rayjump.com,REJECT
-  - DOMAIN-SUFFIX,inmobi.com,REJECT
-  - DOMAIN-SUFFIX,chartboost.com,REJECT
-  - DOMAIN-SUFFIX,adcolony.com,REJECT
-  - DOMAIN-SUFFIX,tapjoy.com,REJECT
-  - DOMAIN-SUFFIX,fyber.com,REJECT
-  - DOMAIN-SUFFIX,bidmachine.io,REJECT
-  - DOMAIN-SUFFIX,smaato.net,REJECT
-  - DOMAIN-SUFFIX,adsmoloco.com,REJECT
+  - 'DOMAIN-SUFFIX,applovin.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,applvn.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,unityads.unity3d.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,supersonicads.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,vungle.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,mintegral.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,rayjump.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,inmobi.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,chartboost.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,adcolony.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,tapjoy.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,fyber.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,bidmachine.io,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,smaato.net,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,adsmoloco.com,${args.block_mode}'
 
   # ---------- 台灣常見廣告聯盟 ----------
-  - DOMAIN-SUFFIX,vpon.com,REJECT
-  - DOMAIN-SUFFIX,vpadn.com,REJECT
-  - DOMAIN-SUFFIX,clickforce.com.tw,REJECT
-  - DOMAIN-SUFFIX,onead.com.tw,REJECT
-  - DOMAIN-SUFFIX,tenmax.io,REJECT
-  - DOMAIN-SUFFIX,adgeek.com.tw,REJECT
-  - DOMAIN-SUFFIX,scupio.com,REJECT
-  - DOMAIN-SUFFIX,ad2iction.com,REJECT
+  - 'DOMAIN-SUFFIX,vpon.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,vpadn.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,clickforce.com.tw,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,onead.com.tw,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,tenmax.io,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,adgeek.com.tw,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,scupio.com,${args.block_mode}'
+  - 'DOMAIN-SUFFIX,ad2iction.com,${args.block_mode}'
 
   # ---------- 遠端規則集 ----------
-  - RULE-SET,AdBlock-Lite-Domain,REJECT
-  - RULE-SET,AdBlock-Lite,REJECT
-  - RULE-SET,AWAvenue-Ads,REJECT
+  - 'RULE-SET,AdBlock-Domain,${args.block_mode}'
+  - 'RULE-SET,AdBlock-Classical,${args.block_mode}'
+  - 'RULE-SET,AWAvenue-Ads,${args.block_mode}'
 
 # ============================================================
 # 3. URL 重寫：針對「開屏廣告設定檔」回傳空資料

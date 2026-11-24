@@ -1,0 +1,4 @@
+# 空的規則集：去廣告覆寫選「關閉」時使用
+# .invalid 是保留網域（RFC 2606），永遠不會命中真實流量
+payload:
+  - DOMAIN,blocked.invalid

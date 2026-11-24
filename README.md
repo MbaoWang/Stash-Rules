@@ -5,7 +5,7 @@ Stash 覆寫合集。每個覆寫都可以單獨安裝、單獨開關。
 | 覆寫 | 用途 | 需要的策略組 |
 |---|---|---|
 | [`dns-leak-protection.stoverride`](#dns-防洩漏) | DNS 分流，國外 DNS 跟著節點走 | 安裝時自己填（Stash 3.7+） |
-| [`AdBlock.stoverride`](#去廣告) | 攔截開屏廣告與 App 內廣告 SDK | 不需要 |
+| [`AdBlock.stoverride`](#去廣告) | 攔截開屏廣告與 App 內廣告 SDK | 不需要（Stash 3.7+） |
 
 ## DNS 防洩漏
 
@@ -98,13 +98,24 @@ https://raw.githubusercontent.com/MbaoWang/Stash-Rules/main/AdBlock.stoverride
 
 開屏廣告的 URL 重寫需要開啟 MitM 並信任 CA 憑證。
 
+### 設定選項
+
+需要 **Stash 3.7 以上**。安裝時 Stash 會跳出設定選項，之後也可以在覆寫列表裡點這個覆寫修改：
+
+| 選項 | 可選 | 說明 |
+|---|---|---|
+| **廣告規則集**（blackmatrix7） | 精簡版（預設）／完整版／關閉 | 精簡版約 3.7 萬條網域；完整版約 29 萬條、7.9 MB，iOS 記憶體吃緊時可能不穩 |
+| **秋風廣告規則** | 開啟（預設）／關閉 | 某個 App 打不開或功能異常時，可以先關掉試試 |
+| **攔截方式** | 建連後攔截（預設）／建連前攔截／靜默丟棄 | 建連後攔截會留下連線紀錄，方便排查；建連前攔截最省資源；靜默丟棄不回應，部分 App 會等到逾時 |
+
+規則集選「關閉」時，會改用本 repo `empty/` 裡的空規則集，裡面只有永遠不會命中的 `blocked.invalid`。
+
 ### 遠端規則集
 
 | 規則集 | 內容 |
 |---|---|
-| blackmatrix7 `AdvertisingLite_Domain` | 約 3.7 萬條廣告網域 |
-| blackmatrix7 `AdvertisingLite_No_Resolve` | 關鍵字與 IP 規則（IP 規則皆已加 `no-resolve`） |
+| blackmatrix7 `*_Domain` | 廣告網域（精簡版約 3.7 萬條，完整版約 29 萬條） |
+| blackmatrix7 `*_No_Resolve` | 關鍵字與 IP 規則（IP 規則皆已加 `no-resolve`） |
 | 秋風 AWAvenue | 專攻 App 內廣告 SDK |
 
 所有 IP 規則都有加 `no-resolve`，不會讓 Stash 在本地解析網域，也就不會造成 DNS 洩漏。
-想要更完整的攔截，可以把覆寫裡的 `AdvertisingLite` 換成 `Advertising`（約 29 萬條網域、7.9 MB）。但 iOS 對 Stash 的記憶體限制較嚴，規則太多可能不穩。
